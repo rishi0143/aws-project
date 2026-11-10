@@ -1,0 +1,111 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #f3f6fa;
+    color: #182337;
+    font-family: Arial, sans-serif;
+}
+
+header {
+    background: #153657;
+    color: white;
+    padding: 18px 6%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header a {
+    color: white;
+    text-decoration: none;
+    margin-left: 18px;
+}
+
+.brand {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+main {
+    width: 90%;
+    max-width: 1000px;
+    margin: 35px auto;
+    min-height: 70vh;
+}
+
+.hero {
+    background: linear-gradient(120deg, #153657, #287ba5);
+    color: white;
+    padding: 42px;
+    border-radius: 16px;
+}
+
+.hero h1 {
+    font-size: 42px;
+}
+
+.panel {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    margin: 18px 0;
+    box-shadow: 0 4px 18px #152b4510;
+}
+
+.search {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) auto;
+    gap: 14px;
+    align-items: end;
+}
+
+label {
+    display: grid;
+    gap: 8px;
+    font-weight: bold;
+}
+
+input {
+    padding: 12px;
+    border: 1px solid #ccd5df;
+    border-radius: 7px;
+    font-size: 15px;
+}
+
+button, .button {
+    background: #ed7b32;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    padding: 13px 18px;
+    text-decoration: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.stack {
+    display: grid;
+    gap: 15px;
+    max-width: 420px;
+}
+
+.flash {
+    background: #ffebe8;
+    padding: 12px;
+    border-radius: 7px;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #68778a;
+}
+
+@media(max-width: 700px) {
+    .search {
+        grid-template-columns: 1fr;
+    }
+}

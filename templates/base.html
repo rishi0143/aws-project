@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EasyBus</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header>
+    <a class="brand" href="/">EasyBus</a>
+    <nav>
+        <a href="/">Search Buses</a>
+        <a href="/bookings">Bookings</a>
+    </nav>
+</header>
+
+<main>
+    {% with messages = get_flashed_messages() %}
+        {% for message in messages %}
+            <p class="flash">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<footer>EasyBus - Bus Ticket Booking Application</footer>
+
+</body>
+</html>

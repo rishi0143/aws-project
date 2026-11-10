@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Booking History</h1>
+
+{% for booking in bookings %}
+
+<div class="panel">
+
+    <h3>Booking ID: #{{ booking.id }}</h3>
+
+    <p>Passenger: {{ booking.passenger_name }}</p>
+
+    <p>
+        {{ booking.source }} → {{ booking.destination }}
+    </p>
+
+    <p>Date: {{ booking.travel_date }}</p>
+
+    <p>Seats: {{ booking.seat_count }}</p>
+
+    <p>Total: ₹{{ booking.total_amount }}</p>
+
+</div>
+
+{% else %}
+
+<p>No bookings available.</p>
+
+{% endfor %}
+
+{% endblock %}

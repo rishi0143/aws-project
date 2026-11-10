@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>{{ source }} → {{ destination }}</h1>
+<p>Journey Date: {{ date }}</p>
+
+{% for bus in buses %}
+
+<div class="panel">
+
+    <h2>{{ bus.operator }}</h2>
+
+    <p>{{ bus.departure }} - {{ bus.arrival }}</p>
+
+    <p>Price: ₹{{ bus.price }}</p>
+
+    <p>Available Seats: {{ bus.available_seats }}</p>
+
+    {% if bus.available_seats > 0 %}
+
+        <a class="button"
+           href="{{ url_for('book', bus_id=bus.id) }}">
+            Book Now
+        </a>
+
+    {% else %}
+        <p>Sold Out</p>
+    {% endif %}
+
+</div>
+
+{% else %}
+
+<div class="panel">
+    No buses found.
+</div>
+
+{% endfor %}
+
+{% endblock %}

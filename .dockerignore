@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+bus_booking.db
+.venv/
+.git/

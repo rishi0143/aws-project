@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="panel">
+
+    <h1>Booking Confirmed!</h1>
+
+    <h3>Thank you, {{ booking.passenger_name }}</h3>
+
+    <p>Booking ID: #{{ booking.id }}</p>
+
+    <p>Route:
+        {{ booking.source }} → {{ booking.destination }}
+    </p>
+
+    <p>Journey Date: {{ booking.travel_date }}</p>
+
+    <p>Seats: {{ booking.seat_count }}</p>
+
+    <h2>Total Amount: ₹{{ booking.total_amount }}</h2>
+
+    <a href="/" class="button">Book Another Trip</a>
+
+</div>
+
+{% endblock %}

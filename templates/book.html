@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Book Your Tickets</h1>
+
+<div class="panel">
+
+    <h2>{{ bus.operator }}</h2>
+
+    <p>{{ bus.source }} → {{ bus.destination }}</p>
+
+    <p>Date: {{ bus.travel_date }}</p>
+
+    <p>Price per seat: ₹{{ bus.price }}</p>
+
+    <p>Available seats: {{ bus.available_seats }}</p>
+
+    <form method="POST" class="stack">
+
+        <label>Passenger Name</label>
+        <input type="text" name="passenger_name" required>
+
+        <label>Email</label>
+        <input type="email" name="email" required>
+
+        <label>Number of Seats</label>
+        <input type="number"
+               name="seat_count"
+               min="1"
+               max="{{ bus.available_seats }}"
+               value="1" required>
+
+        <button type="submit">Confirm Booking</button>
+
+    </form>
+
+</div>
+
+{% endblock %}
