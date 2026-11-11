@@ -1,40 +1,33 @@
-{% extends "base.html" %}
 
-{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Book Tickets</title>
+</head>
+<body>
+    <h1>Book Your Tickets</h1>
 
-<h1>Book Your Tickets</h1>
-
-<div class="panel">
-
-    <h2>{{ bus.operator }}</h2>
-
-    <p>{{ bus.source }} → {{ bus.destination }}</p>
-
-    <p>Date: {{ bus.travel_date }}</p>
-
-    <p>Price per seat: ₹{{ bus.price }}</p>
-
+    <h2>{{ bus.bus_name }}</h2>
+    <p>{{ bus.source }} to {{ bus.destination }}</p>
+    <p>Fare per seat: ₹{{ bus.fare }}</p>
     <p>Available seats: {{ bus.available_seats }}</p>
 
-    <form method="POST" class="stack">
+    {% with messages = get_flashed_messages() %}
+      {% for message in messages %}
+        <p>{{ message }}</p>
+      {% endfor %}
+    {% endwith %}
 
+    <form method="POST">
         <label>Passenger Name</label>
         <input type="text" name="passenger_name" required>
 
-        <label>Email</label>
-        <input type="email" name="email" required>
-
         <label>Number of Seats</label>
-        <input type="number"
-               name="seat_count"
-               min="1"
-               max="{{ bus.available_seats }}"
+        <input type="number" name="seats"
+               min="1" max="6"
                value="1" required>
 
-        <button type="submit">Confirm Booking</button>
-
+        <button type="submit">Continue to Payment</button>
     </form>
-
-</div>
-
-{% endblock %}
+</body>
+</html>
