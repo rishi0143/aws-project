@@ -18,18 +18,17 @@ env:
   EKS_CLUSTER: my-eks-cluster3
 
 jobs:
-
   PythonCI:
     name: Build and Deploy
     runs-on: ubuntu-latest
 
     steps:
 
-      # 1. Checkout GitHub repository
+      # 1. Checkout GitHub Code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. Configure Docker Buildx
+      # 2. Docker Buildx Setup
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -40,28 +39,29 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 4. Build Docker Image
-      - name: Build Docker Image
-        run: |
-          SHORT_SHA=${GITHUB_SHA::7}
-          docker build -t $IMAGE_NAME:$SHORT_SHA .
-          docker tag $IMAGE_NAME:$SHORT_SHA $IMAGE_NAME:latest
+      # 4. Build and Push Docker Image
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            rishi784/aws-project:${{ github.sha }}
+            rishi784/aws-project:latest
 
-      # 5. Push Docker Image
-      - name: Push Docker Image
-        run: |
-          SHORT_SHA=${GITHUB_SHA::7}
-          docker push $IMAGE_NAME:$SHORT_SHA
-          docker push $IMAGE_NAME:latest
-
-      # 6. Configure AWS Credentials
+      # 5. Configure AWS Credentials using OIDC
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 7. Connect to EKS Cluster
+      # 6. Verify AWS Authentication
+      - name: Verify AWS Credentials
+        run: |
+          aws sts get-caller-identity
+
+      # 7. Connect to AWS EKS
       - name: Update Kubeconfig
         run: |
           aws eks update-kubeconfig \
@@ -69,23 +69,23 @@ jobs:
             --name $EKS_CLUSTER
 
       # 8. Deploy Kubernetes Manifests
-      - name: Deploy to Kubernetes
+      - name: Deploy Kubernetes
         run: |
           kubectl apply -f k8t/deployment.yaml
           kubectl apply -f k8t/service.yaml
           kubectl apply -f k8t/hpa.yaml
 
-      # 9. Update Docker Image in Deployment
+      # 9. Update Deployment Image
       - name: Update Deployment Image
         run: |
-          SHORT_SHA=${GITHUB_SHA::7}
           kubectl set image deployment/pyapp \
-            pyapp=$IMAGE_NAME:$SHORT_SHA
+            pyapp=$IMAGE_NAME:${{ github.sha }}
 
-      # 10. Verify Deployment
-      - name: Check Kubernetes Deployment
+      # 10. Check Deployment Status
+      - name: Verify Kubernetes Deployment
         run: |
-          kubectl rollout status deployment/pyapp
+          kubectl rollout status deployment/pyapp --timeout=180s
           kubectl get pods
+          kubectl get deployment
           kubectl get svc
           kubectl get hpa
