@@ -17,40 +17,45 @@ env:
 jobs:
   HPA-Deploy:
     name: Deploy and Test HPA
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Verify AWS IAM Role
-        run: |
-          aws sts get-caller-identity
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
 
-      - name: Connect to EKS Cluster
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
+      - name: Connect to EKS
         run: |
           aws eks update-kubeconfig \
             --region $AWS_REGION \
             --name $EKS_CLUSTER
 
       - name: Check Kubernetes Nodes
-        run: |
-          kubectl get nodes
+        run: kubectl get nodes
 
       - name: Check Metrics Server
         run: |
           kubectl get deployment metrics-server -n kube-system
           kubectl top nodes
 
-      - name: Apply Kubernetes Deployment
+      - name: Deploy Application
         run: |
           kubectl apply -f k8t/deployment.yaml
-
-      - name: Apply Kubernetes Service
-        run: |
           kubectl apply -f k8t/service.yaml
 
-      - name: Apply HPA
+      - name: Deploy HPA
         run: |
           kubectl apply -f k8t/hpa.yaml
 
@@ -58,8 +63,4 @@ jobs:
         run: |
           kubectl get hpa
           kubectl describe hpa pyapp-hpa
-
-      - name: Verify Pods
-        run: |
           kubectl get pods
-          kubectl get deployment
