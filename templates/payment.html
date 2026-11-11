@@ -1,0 +1,50 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payment</title>
+</head>
+<body>
+    <h1>Payment Details</h1>
+
+    <p>Passenger: {{ booking.passenger_name }}</p>
+    <p>Bus: {{ booking.bus_name }}</p>
+    <p>Route: {{ booking.source }} to {{ booking.destination }}</p>
+    <p>Journey Date: {{ booking.journey_date }}</p>
+    <p>Number of Tickets: {{ booking.seats }}</p>
+    <p>Price per Ticket:
+       ₹{{ booking.total_amount / booking.seats }}</p>
+
+    <h2>Total Amount: ₹{{ booking.total_amount }}</h2>
+
+    <form method="POST">
+        <h3>Select Payment Method</h3>
+
+        <label>
+            <input type="radio" name="payment_method"
+                   value="UPI" required>
+            UPI (Demo)
+        </label>
+        <br>
+
+        <label>
+            <input type="radio" name="payment_method"
+                   value="CARD">
+            Debit / Credit Card (Demo)
+        </label>
+        <br>
+
+        <label>
+            <input type="radio" name="payment_method"
+                   value="CASH">
+            Cash on Boarding
+        </label>
+        <br><br>
+
+        <button type="submit">Confirm Booking</button>
+    </form>
+
+    <p>Demo application: no actual payment is collected.</p>
+</body>
+</html>
+

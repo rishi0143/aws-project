@@ -1,0 +1,23 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Booking Confirmed</title>
+</head>
+<body>
+    <h1>Booking Successful!</h1>
+
+    <h3>Booking ID: {{ booking.id }}</h3>
+    <p>Passenger: {{ booking.passenger_name }}</p>
+    <p>Bus: {{ booking.bus_name }}</p>
+    <p>Route: {{ booking.source }} to {{ booking.destination }}</p>
+    <p>Journey Date: {{ booking.journey_date }}</p>
+    <p>Tickets: {{ booking.seats }}</p>
+    <p>Total Amount: ₹{{ booking.total_amount }}</p>
+    <p>Payment Method: {{ booking.payment_method }}</p>
+    <p>Payment Status: {{ booking.payment_status }}</p>
+
+    <a href="/">Back to Home</a>
+</body>
+</html>
+
