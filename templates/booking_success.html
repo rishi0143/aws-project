@@ -1,23 +1,50 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Booking Confirmed</title>
+    <meta charset="UTF-8">
+    <title>Booking Successful - EasyBus</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Booking Successful!</h1>
 
-    <h3>Booking ID: {{ booking.id }}</h3>
-    <p>Passenger: {{ booking.passenger_name }}</p>
-    <p>Bus: {{ booking.bus_name }}</p>
-    <p>Route: {{ booking.source }} to {{ booking.destination }}</p>
-    <p>Journey Date: {{ booking.journey_date }}</p>
-    <p>Tickets: {{ booking.seats }}</p>
-    <p>Total Amount: ₹{{ booking.total_amount }}</p>
-    <p>Payment Method: {{ booking.payment_method }}</p>
-    <p>Payment Status: {{ booking.payment_status }}</p>
+<nav class="navbar">
+    <h1>EasyBus</h1>
+    <a href="/">Home</a>
+</nav>
 
-    <a href="/">Back to Home</a>
+<div class="container">
+
+    <div class="success-card">
+
+        <h1>Booking Successful!</h1>
+
+        <h2>Booking ID: {{ booking.id }}</h2>
+
+        <p>Passenger: {{ booking.passenger_name }}</p>
+
+        <p>Email: {{ booking.email }}</p>
+
+        <p>Bus: {{ booking.bus_name }}</p>
+
+        <p>Route: {{ booking.source }} to {{ booking.destination }}</p>
+
+        <p>Journey Date: {{ booking.journey_date }}</p>
+
+        <p>Tickets: {{ booking.seats }}</p>
+
+        <h2>Total Amount: ₹{{ booking.total_amount }}</h2>
+
+        <p>Payment Method: {{ booking.payment_method }}</p>
+
+        <p>Payment Status: {{ booking.payment_status }}</p>
+
+        <h3>Your seats are confirmed!</h3>
+
+        <a class="button" href="/">Back to Home</a>
+
+    </div>
+</div>
+
 </body>
 </html>
-

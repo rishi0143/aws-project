@@ -1,0 +1,62 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Bookings - EasyBus</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav class="navbar">
+    <h1>EasyBus</h1>
+    <a href="/">Home</a>
+</nav>
+
+<div class="container">
+
+    <h1>My Bookings</h1>
+
+    {% if bookings %}
+
+        {% for booking in bookings %}
+
+        <div class="bus-card">
+
+            <h2>Booking ID: {{ booking.id }}</h2>
+
+            <p>Passenger: {{ booking.passenger_name }}</p>
+
+            <p>Email: {{ booking.email }}</p>
+
+            <p>Bus: {{ booking.bus_name }}</p>
+
+            <p>Route:
+                {{ booking.source }} to {{ booking.destination }}</p>
+
+            <p>Journey Date: {{ booking.journey_date }}</p>
+
+            <p>Tickets: {{ booking.seats }}</p>
+
+            <h3>Total: ₹{{ booking.total_amount }}</h3>
+
+            <p>Payment: {{ booking.payment_status }}</p>
+
+            <p>Booking Status: {{ booking.booking_status }}</p>
+
+        </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <h2>No bookings found.</h2>
+
+    {% endif %}
+
+    <a href="/">Book Another Ticket</a>
+
+</div>
+
+</body>
+</html>

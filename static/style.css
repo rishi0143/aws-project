@@ -1,14 +1,19 @@
 
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
     font-family: Arial, sans-serif;
     background: #f2f5fa;
+    color: #18344d;
 }
 
 .navbar {
     background: #173957;
     color: white;
-    padding: 20px 7%;
+    padding: 18px 7%;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -17,36 +22,42 @@ body {
 .navbar a {
     color: white;
     text-decoration: none;
-    margin-left: 25px;
+    margin-left: 20px;
 }
 
 .container {
     width: 88%;
-    margin: 50px auto;
+    max-width: 1250px;
+    margin: 40px auto;
 }
 
 .hero {
     background: linear-gradient(120deg, #173957, #2583a8);
     color: white;
     padding: 65px;
-    border-radius: 20px;
+    border-radius: 18px;
+    margin-bottom: 25px;
 }
 
 .hero h2 {
-    font-size: 48px;
+    font-size: 45px;
 }
 
-.search-box {
+.search-box,
+.form-card,
+.bus-card,
+.success-card {
     background: white;
-    padding: 35px;
-    margin-top: 25px;
-    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 25px;
+    border-radius: 14px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.06);
 }
 
 .search-box form {
     display: flex;
-    gap: 20px;
     align-items: end;
+    gap: 18px;
 }
 
 .form-group {
@@ -56,33 +67,69 @@ body {
 label {
     display: block;
     font-weight: bold;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
-input, select {
+input:not([type="radio"]),
+select {
     width: 100%;
-    padding: 18px;
-    box-sizing: border-box;
+    padding: 15px;
+    margin-bottom: 18px;
     border: 1px solid #ccd5df;
-    border-radius: 9px;
+    border-radius: 8px;
     font-size: 16px;
 }
 
-button {
+input[type="radio"] {
+    margin-right: 8px;
+}
+
+button,
+.button {
+    display: inline-block;
     background: #f47729;
     color: white;
     border: none;
-    padding: 19px 25px;
-    border-radius: 9px;
+    padding: 15px 24px;
+    border-radius: 8px;
     cursor: pointer;
+    text-decoration: none;
     font-weight: bold;
 }
 
+button:hover,
+.button:hover {
+    background: #d96018;
+}
+
+.available {
+    color: #159447;
+}
+
 .message {
-    color: red;
+    color: #d93025;
+}
+
+.success-card {
+    border-top: 5px solid #159447;
 }
 
 footer {
     text-align: center;
-    padding: 25px;
+    padding: 20px;
+}
+
+@media (max-width: 768px) {
+    .search-box form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hero h2 {
+        font-size: 30px;
+    }
+
+    .hero {
+        padding: 30px;
+    }
 }

@@ -1,0 +1,67 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Available Buses - EasyBus</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav class="navbar">
+    <h1>EasyBus</h1>
+    <a href="/">Home</a>
+</nav>
+
+<div class="container">
+
+    <h1>Available Buses</h1>
+
+    <h3>{{ source }} to {{ destination }}</h3>
+    <p>Journey Date: {{ journey_date }}</p>
+
+    {% if buses %}
+
+        {% for bus in buses %}
+
+        <div class="bus-card">
+
+            <h2>{{ bus.bus_name }}</h2>
+
+            <p><strong>From:</strong> {{ bus.source }}</p>
+            <p><strong>To:</strong> {{ bus.destination }}</p>
+
+            <p><strong>Departure:</strong>
+                {{ bus.departure_time }}</p>
+
+            <p><strong>Arrival:</strong>
+                {{ bus.arrival_time }}</p>
+
+            <h3>Ticket Fare: ₹{{ bus.fare }}</h3>
+
+            <h3 class="available">
+                Available Seats: {{ bus.available_seats }}
+            </h3>
+
+            <a class="button"
+               href="{{ url_for('book_bus', bus_id=bus.id) }}">
+                Book Ticket
+            </a>
+
+        </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <h2>No buses available for this route and date.</h2>
+
+    {% endif %}
+
+    <br>
+    <a href="/">Back to Home</a>
+
+</div>
+
+</body>
+</html>

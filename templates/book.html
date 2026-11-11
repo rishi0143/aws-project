@@ -1,33 +1,67 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Book Tickets</title>
+    <meta charset="UTF-8">
+    <title>Book Tickets - EasyBus</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Book Your Tickets</h1>
 
-    <h2>{{ bus.bus_name }}</h2>
-    <p>{{ bus.source }} to {{ bus.destination }}</p>
-    <p>Fare per seat: ₹{{ bus.fare }}</p>
-    <p>Available seats: {{ bus.available_seats }}</p>
+<nav class="navbar">
+    <h1>EasyBus</h1>
+    <a href="/">Home</a>
+</nav>
 
-    {% with messages = get_flashed_messages() %}
-      {% for message in messages %}
-        <p>{{ message }}</p>
-      {% endfor %}
-    {% endwith %}
+<div class="container">
 
-    <form method="POST">
-        <label>Passenger Name</label>
-        <input type="text" name="passenger_name" required>
+    <div class="form-card">
 
-        <label>Number of Seats</label>
-        <input type="number" name="seats"
-               min="1" max="6"
-               value="1" required>
+        <h1>Passenger Details</h1>
 
-        <button type="submit">Continue to Payment</button>
-    </form>
+        <h2>{{ bus.bus_name }}</h2>
+
+        <p>{{ bus.source }} to {{ bus.destination }}</p>
+
+        <p>Journey Date: {{ bus.journey_date }}</p>
+
+        <p>Departure: {{ bus.departure_time }}</p>
+
+        <h3>Fare per Ticket: ₹{{ bus.fare }}</h3>
+
+        <h3>Available Seats: {{ bus.available_seats }}</h3>
+
+        {% with messages = get_flashed_messages() %}
+            {% for message in messages %}
+                <p class="message">{{ message }}</p>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST">
+
+            <label>Passenger Name</label>
+            <input type="text" name="passenger_name"
+                   placeholder="Enter your name" required>
+
+            <label>Gmail ID</label>
+            <input type="email" name="email"
+                   placeholder="Enter your Gmail ID" required>
+
+            <label>Mobile Number</label>
+            <input type="tel" name="phone"
+                   placeholder="Enter mobile number"
+                   pattern="[0-9]{10}" required>
+
+            <label>Number of Tickets</label>
+            <input type="number" name="seats"
+                   min="1" max="6" value="1" required>
+
+            <button type="submit">Continue to Payment</button>
+
+        </form>
+
+    </div>
+</div>
+
 </body>
 </html>

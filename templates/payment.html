@@ -1,50 +1,90 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Payment</title>
+    <meta charset="UTF-8">
+    <title>Payment - EasyBus</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Payment Details</h1>
 
-    <p>Passenger: {{ booking.passenger_name }}</p>
-    <p>Bus: {{ booking.bus_name }}</p>
-    <p>Route: {{ booking.source }} to {{ booking.destination }}</p>
-    <p>Journey Date: {{ booking.journey_date }}</p>
-    <p>Number of Tickets: {{ booking.seats }}</p>
-    <p>Price per Ticket:
-       ₹{{ booking.total_amount / booking.seats }}</p>
+<nav class="navbar">
+    <h1>EasyBus</h1>
+    <a href="/">Home</a>
+</nav>
 
-    <h2>Total Amount: ₹{{ booking.total_amount }}</h2>
+<div class="container">
 
-    <form method="POST">
-        <h3>Select Payment Method</h3>
+    <div class="form-card">
 
-        <label>
-            <input type="radio" name="payment_method"
-                   value="UPI" required>
-            UPI (Demo)
-        </label>
-        <br>
+        <h1>Payment Details</h1>
 
-        <label>
-            <input type="radio" name="payment_method"
-                   value="CARD">
-            Debit / Credit Card (Demo)
-        </label>
-        <br>
+        <p><strong>Booking ID:</strong> {{ booking.id }}</p>
 
-        <label>
-            <input type="radio" name="payment_method"
-                   value="CASH">
-            Cash on Boarding
-        </label>
-        <br><br>
+        <p><strong>Passenger:</strong>
+            {{ booking.passenger_name }}</p>
 
-        <button type="submit">Confirm Booking</button>
-    </form>
+        <p><strong>Email:</strong> {{ booking.email }}</p>
 
-    <p>Demo application: no actual payment is collected.</p>
+        <p><strong>Bus:</strong> {{ booking.bus_name }}</p>
+
+        <p><strong>Route:</strong>
+            {{ booking.source }} to {{ booking.destination }}</p>
+
+        <p><strong>Journey Date:</strong>
+            {{ booking.journey_date }}</p>
+
+        <p><strong>Tickets:</strong> {{ booking.seats }}</p>
+
+        <p><strong>Price per Ticket:</strong>
+            ₹{{ booking.total_amount / booking.seats }}</p>
+
+        <hr>
+
+        <h2>Total Amount: ₹{{ booking.total_amount }}</h2>
+
+        {% with messages = get_flashed_messages() %}
+            {% for message in messages %}
+                <p class="message">{{ message }}</p>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST">
+
+            <h3>Select Payment Method</h3>
+
+            <label>
+                <input type="radio" name="payment_method"
+                       value="UPI" required>
+                UPI Payment (Demo)
+            </label>
+
+            <br><br>
+
+            <label>
+                <input type="radio" name="payment_method"
+                       value="CARD">
+                Debit / Credit Card (Demo)
+            </label>
+
+            <br><br>
+
+            <label>
+                <input type="radio" name="payment_method"
+                       value="CASH">
+                Cash on Boarding
+            </label>
+
+            <br><br>
+
+            <button type="submit">Confirm Booking</button>
+
+        </form>
+
+        <p>Demo payment only. No real money will be charged.</p>
+
+    </div>
+</div>
+
 </body>
 </html>
-
