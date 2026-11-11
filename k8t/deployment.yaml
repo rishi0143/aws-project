@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: bus-booking
-          image: rishi784/gha-pyapp:6f1786e
+          image: rishi784/gha-pyapp:1dd3da0
           ports:
             - containerPort: 5000
           resources:
