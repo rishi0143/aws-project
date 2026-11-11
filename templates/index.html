@@ -1,30 +1,76 @@
-{% extends "base.html" %}
 
-{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyBus - Bus Ticket Booking</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
 
-<section class="hero">
-    <h1>Book Your Bus Tickets</h1>
-    <p>Travel safely and comfortably with EasyBus</p>
-</section>
+<nav class="navbar">
+    <h1>EasyBus</h1>
+    <div>
+        <a href="/">Search Buses</a>
+        <a href="/my-bookings">Bookings</a>
+    </div>
+</nav>
 
-<form class="panel search" action="/search" method="GET">
+<div class="container">
 
-    <label>From
-        <input type="text" name="source"
-               placeholder="Hyderabad" required>
-    </label>
+    <section class="hero">
+        <h2>Book Your Bus Tickets</h2>
+        <p>Travel safely and comfortably with EasyBus</p>
+    </section>
 
-    <label>To
-        <input type="text" name="destination"
-               placeholder="Vijayawada" required>
-    </label>
+    {% with messages = get_flashed_messages() %}
+        {% for message in messages %}
+            <p class="message">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
 
-    <label>Journey Date
-        <input type="date" name="travel_date" required>
-    </label>
+    <section class="search-box">
+        <form action="/search" method="POST">
 
-    <button type="submit">Search Buses</button>
+            <div class="form-group">
+                <label>From</label>
+                <input type="text"
+                       name="source"
+                       value="Hyderabad"
+                       readonly>
+            </div>
 
-</form>
+            <div class="form-group">
+                <label>To</label>
+                <select name="destination" required>
+                    <option value="">Select Destination</option>
+                    <option value="Visakhapatnam">Vizag</option>
+                    <option value="Vijayawada">Vijayawada</option>
+                    <option value="Sompeta">Sompeta</option>
+                    <option value="Baruva">Baruva</option>
+                </select>
+            </div>
 
-{% endblock %}
+            <div class="form-group">
+                <label>Journey Date</label>
+                <input type="date"
+                       name="journey_date"
+                       min="{{ today }}"
+                       required>
+            </div>
+
+            <button type="submit">Search Buses</button>
+
+        </form>
+    </section>
+
+</div>
+
+<footer>
+    <p>EasyBus - Your Journey, Our Responsibility</p>
+</footer>
+
+</body>
+</html>
