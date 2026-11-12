@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: ap-south-1
-  EKS_CLUSTER_NAME: my-eks-cluster3
+  EKS_CLUSTER_NAME: my-eks-cluster5
   DOCKER_IMAGE: rishi784/bus-booking
 
 jobs:
