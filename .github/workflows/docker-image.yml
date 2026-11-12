@@ -1,5 +1,5 @@
 
-name: HPA-CI
+name: KubeCI
 
 on:
   push:
@@ -7,60 +7,108 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 env:
   AWS_REGION: ap-south-1
-  EKS_CLUSTER: my-eks-cluster3
+  EKS_CLUSTER_NAME: my-eks-cluster3
+  DOCKER_IMAGE: rishi784/bus-booking
 
 jobs:
-  HPA-Deploy:
-    name: Deploy and Test HPA
+  build-and-deploy:
+    name: Build, Deploy and Test HPA
     runs-on: ubuntu-latest
 
     steps:
+
+      # 1. Checkout source code
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # 2. Login to Docker Hub
+      - name: Docker Hub Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 3. Build Docker Image
+      - name: Build Docker Image
+        run: |
+          docker build -t $DOCKER_IMAGE:${GITHUB_SHA::7} .
+          docker tag $DOCKER_IMAGE:${GITHUB_SHA::7} $DOCKER_IMAGE:latest
+
+      # 4. Push Docker Image
+      - name: Push Docker Image
+        run: |
+          docker push $DOCKER_IMAGE:${GITHUB_SHA::7}
+          docker push $DOCKER_IMAGE:latest
+
+      # 5. Configure AWS Credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+          aws-region: ${{ env.AWS_REGION }}
 
+      # 6. Install kubectl
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
+        with:
+          version: latest
 
+      # 7. Verify AWS Identity
       - name: Verify AWS Identity
-        run: aws sts get-caller-identity
+        run: |
+          aws sts get-caller-identity
 
+      # 8. Connect to EKS
       - name: Connect to EKS
         run: |
           aws eks update-kubeconfig \
             --region $AWS_REGION \
-            --name $EKS_CLUSTER
+            --name $EKS_CLUSTER_NAME
 
+      # 9. Check Kubernetes Nodes
       - name: Check Kubernetes Nodes
-        run: kubectl get nodes
+        run: |
+          kubectl get nodes
+          kubectl get pods -A
 
+      # 10. Check Metrics Server
       - name: Check Metrics Server
         run: |
-          kubectl get deployment metrics-server -n kube-system
+          kubectl get apiservices v1beta1.metrics.k8s.io
           kubectl top nodes
 
+      # 11. Deploy Application
       - name: Deploy Application
         run: |
           kubectl apply -f k8t/deployment.yaml
           kubectl apply -f k8t/service.yaml
 
-      - name: Deploy HPA
+          kubectl set image deployment/bus-booking \
+            bus-booking=$DOCKER_IMAGE:${GITHUB_SHA::7}
+
+          kubectl rollout status deployment/bus-booking \
+            --timeout=180s
+
+      # 12. Configure HPA
+      - name: Configure HPA
         run: |
           kubectl apply -f k8t/hpa.yaml
 
-      - name: Verify HPA
+      # 13. Test HPA
+      - name: Test HPA
         run: |
           kubectl get hpa
-          kubectl describe hpa pyapp-hpa
-          kubectl get pods
+          kubectl describe hpa
+          kubectl top pods
+
+      # 14. Final Deployment Status
+      - name: Deployment Status
+        if: always()
+        run: |
+          kubectl get deployments || true
+          kubectl get pods || true
+          kubectl get services || true
+          kubectl get hpa || true
