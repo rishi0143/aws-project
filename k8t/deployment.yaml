@@ -1,3 +1,4 @@
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,13 +15,6 @@ spec:
     spec:
       containers:
         - name: bus-booking
-          image: rishi784/gha-pyapp:2e24735
+          image: rishi784/bus-booking:latest
           ports:
             - containerPort: 5000
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "128Mi"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
