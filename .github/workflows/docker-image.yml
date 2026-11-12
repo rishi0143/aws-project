@@ -68,19 +68,29 @@ jobs:
             --region $AWS_REGION \
             --name $EKS_CLUSTER_NAME
 
-      # 9. Check Kubernetes Nodes
-      - name: Check Kubernetes Nodes
+      # 9. Check EKS Connection
+      - name: Check EKS Connection
         run: |
           kubectl get nodes
           kubectl get pods -A
 
-      # 10. Check Metrics Server
+      # 10. Install Metrics Server Automatically
+      - name: Install Metrics Server
+        run: |
+          kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+          kubectl rollout status deployment/metrics-server \
+            -n kube-system \
+            --timeout=180s
+
+      # 11. Verify Metrics Server
       - name: Check Metrics Server
         run: |
+          kubectl get deployment metrics-server -n kube-system
           kubectl get apiservices v1beta1.metrics.k8s.io
           kubectl top nodes
 
-      # 11. Deploy Application
+      # 12. Deploy Application
       - name: Deploy Application
         run: |
           kubectl apply -f k8t/deployment.yaml
@@ -92,23 +102,30 @@ jobs:
           kubectl rollout status deployment/bus-booking \
             --timeout=180s
 
-      # 12. Configure HPA
+      # 13. Configure HPA
       - name: Configure HPA
         run: |
           kubectl apply -f k8t/hpa.yaml
 
-      # 13. Test HPA
-      - name: Test HPA
+      # 14. Wait for HPA Metrics
+      - name: Wait for HPA
         run: |
+          sleep 30
           kubectl get hpa
-          kubectl describe hpa
+          kubectl describe hpa bus-booking-hpa
+
+      # 15. Test CPU and Memory Metrics
+      - name: Test Metrics
+        run: |
+          kubectl top nodes
           kubectl top pods
 
-      # 14. Final Deployment Status
+      # 16. Final Deployment Status
       - name: Deployment Status
         if: always()
         run: |
           kubectl get deployments || true
-          kubectl get pods || true
+          kubectl get pods -o wide || true
           kubectl get services || true
           kubectl get hpa || true
+          kubectl get pods -n kube-system | grep metrics-server || true
