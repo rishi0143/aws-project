@@ -16,31 +16,25 @@ permissions:
 
 jobs:
   sonarqube:
-    name: SonarQube Analysis
+    name: SonarQube Cloud Analysis
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
 
       - name: SonarQube Cloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
+          projectBaseDir: .
           args: >
+            -Dsonar.projectKey=rishi0143
+            -Dsonar.organization=rishi0143_aws-project3
+            -Dsonar.sources=.
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.exclusions=terraform/**,k8t/**,.github/**,.terraform/**,**/__pycache__/**,**/venv/**
             -Dsonar.qualitygate.wait=true
