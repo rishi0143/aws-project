@@ -1,131 +1,42 @@
-
-name: KubeCI
+name: SonarCloud Scan
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
-env:
-  AWS_REGION: ap-south-1
-  EKS_CLUSTER_NAME: my-eks-cluster5
-  DOCKER_IMAGE: rishi784/bus-booking
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
-  build-and-deploy:
-    name: Build, Deploy and Test HPA
+  sonar:
+    name: SonarCloud Analysis
     runs-on: ubuntu-latest
 
     steps:
-
-      # 1. Checkout source code
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      # 2. Login to Docker Hub
-      - name: Docker Hub Login
-        uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          fetch-depth: 0
 
-      # 3. Build Docker Image
-      - name: Build Docker Image
-        run: |
-          docker build -t $DOCKER_IMAGE:${GITHUB_SHA::7} .
-          docker tag $DOCKER_IMAGE:${GITHUB_SHA::7} $DOCKER_IMAGE:latest
-
-      # 4. Push Docker Image
-      - name: Push Docker Image
-        run: |
-          docker push $DOCKER_IMAGE:${GITHUB_SHA::7}
-          docker push $DOCKER_IMAGE:latest
-
-      # 5. Configure AWS Credentials
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          java-version: '17'
+          distribution: 'temurin'
 
-      # 6. Install kubectl
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+      - name: Cache Maven packages
+        uses: actions/cache@v4
         with:
-          version: latest
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
 
-      # 7. Verify AWS Identity
-      - name: Verify AWS Identity
+      - name: Build and Analyze with SonarCloud
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          aws sts get-caller-identity
-
-      # 8. Connect to EKS
-      - name: Connect to EKS
-        run: |
-          aws eks update-kubeconfig \
-            --region $AWS_REGION \
-            --name $EKS_CLUSTER_NAME
-
-      # 9. Check EKS Connection
-      - name: Check EKS Connection
-        run: |
-          kubectl get nodes
-          kubectl get pods -A
-
-      # 10. Install Metrics Server Automatically
-      - name: Install Metrics Server
-        run: |
-          kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-
-          kubectl rollout status deployment/metrics-server \
-            -n kube-system \
-            --timeout=180s
-
-      # 11. Verify Metrics Server
-      - name: Check Metrics Server
-        run: |
-          kubectl get deployment metrics-server -n kube-system
-          kubectl get apiservices v1beta1.metrics.k8s.io
-          kubectl top nodes
-
-      # 12. Deploy Application
-      - name: Deploy Application
-        run: |
-          kubectl apply -f k8t/deployment.yaml
-          kubectl apply -f k8t/service.yaml
-
-          kubectl set image deployment/bus-booking \
-            bus-booking=$DOCKER_IMAGE:${GITHUB_SHA::7}
-
-          kubectl rollout status deployment/bus-booking \
-            --timeout=180s
-
-      # 13. Configure HPA
-      - name: Configure HPA
-        run: |
-          kubectl apply -f k8t/hpa.yaml
-
-      # 14. Wait for HPA Metrics
-      - name: Wait for HPA
-        run: |
-          sleep 30
-          kubectl get hpa
-          kubectl describe hpa bus-booking-hpa
-
-      # 15. Test CPU and Memory Metrics
-      - name: Test Metrics
-        run: |
-          kubectl top nodes
-          kubectl top pods
-
-      # 16. Final Deployment Status
-      - name: Deployment Status
-        if: always()
-        run: |
-          kubectl get deployments || true
-          kubectl get pods -o wide || true
-          kubectl get services || true
-          kubectl get hpa || true
-          kubectl get pods -n kube-system | grep metrics-server || true
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          -Dsonar.organization=rishi0143 \
+          -Dsonar.projectKey=rishi0143_aws-project3 \
+          -Dsonar.host.url=https://sonarcloud.io
