@@ -44,7 +44,7 @@ jobs:
           SHORT_SHA=${GITHUB_SHA::7}
           export SHORT_SHA
           yq -i '.spec.template.spec.containers[0].image = "rishi784/gha-pyapp:" + strenv(SHORT_SHA)' \
-            ./k8s/pyapp-deployment.yml
+            ./k8s/deployment.yml
           echo "Updated Docker image:"
           yq '.spec.template.spec.containers[0].image' \
             .k8t/deployment.yaml
