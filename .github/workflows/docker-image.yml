@@ -1,3 +1,4 @@
+
 name: KubeCI
 
 on:
@@ -5,12 +6,14 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   rishi:
     runs-on: ubuntu-latest
 
     steps:
-
       # 1. Checkout GitHub repository
       - name: Git checkout
         uses: actions/checkout@v4
@@ -21,16 +24,41 @@ jobs:
           SHORT_SHA=${GITHUB_SHA::7}
           docker build -t rishi784/gha:${SHORT_SHA} .
 
-      # 3. Login to Docker Hub
+      # 3. Trivy scan - Docker image only
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: rishi784/gha:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+
+      # 4. Login to Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-       # 4. Push Docker image
+
+      # 5. Push Docker image
       - name: Push Docker Image
         run: |
           SHORT_SHA=${GITHUB_SHA::7}
           docker push rishi784/gha:${SHORT_SHA}
 
-     
+      # 6. Update Kubernetes Deployment image
+      - name: Update Kubernetes Image
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          sed -i "s|image: .*|image: rishi784/gha:${SHORT_SHA}|" k8t/deployment.yaml
+
+      # 7. Commit Kubernetes changes for ArgoCD
+      - name: Push Kubernetes Manifest
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add k8t/deployment.yaml
+          git commit -m "Update image tag [skip ci]" || echo "No changes to commit"
+          git push
