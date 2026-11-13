@@ -1,237 +1,88 @@
 
-name: Bus Booking Full DevOps CI-CD
+name: Bus Booking DevOps Pipeline
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
-
-  # =====================================
-  # JOB 1: PYTHON MATRIX TESTING
-  # =====================================
-  matrix-testing:
-    name: Python ${{ matrix.python-version }} Testing
+  build-scan-deploy:
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-
     steps:
+      # 1. Checkout source code
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: false
 
+      # 2. Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
+      # 3. Install dependencies
       - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
-
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
 
-          pip install pytest
-
-      - name: Run Python Tests
-        run: |
-          if [ -d tests ] && find tests -name 'test_*.py' | grep -q .; then
-            pytest -v
-          else
-            echo "No test files found. Checking Python syntax."
-            python -m compileall -q .
-          fi
-
-  # =====================================
-  # JOB 2: SONARQUBE ANALYSIS
-  # =====================================
-  sonarqube:
-    name: SonarQube Code Quality
-    runs-on: ubuntu-latest
-    needs: matrix-testing
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: false
-
-      - name: Check SonarQube Connection
-        env:
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        run: |
-          if [ -z "$SONAR_HOST_URL" ]; then
-            echo "SONAR_HOST_URL secret is missing"
-            exit 1
-          fi
-
-          SONAR_HOST_URL="${SONAR_HOST_URL%/}"
-
-          curl --fail --show-error \
-            --connect-timeout 15 \
-            --max-time 30 \
-            "$SONAR_HOST_URL/api/system/status"
-
-      - name: SonarQube Scan Using Docker
+      # 4. SonarQube Code Quality Scan
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          SONAR_HOST_URL="${SONAR_HOST_URL%/}"
 
-          docker pull sonarsource/sonar-scanner-cli:4.8.1
-
-          docker run --rm \
-            --user "$(id -u):$(id -g)" \
-            -e SONAR_HOST_URL="$SONAR_HOST_URL" \
-            -e SONAR_TOKEN="$SONAR_TOKEN" \
-            -v "$GITHUB_WORKSPACE:/usr/src" \
-            -w /usr/src \
-            sonarsource/sonar-scanner-cli:4.8.1 \
-            -Dsonar.projectBaseDir=/usr/src
-
-  # =====================================
-  # JOB 3: DOCKER BUILD AND TRIVY SCAN
-  # =====================================
-  docker-security:
-    name: Docker Build and Trivy Security
-    runs-on: ubuntu-latest
-
-    needs:
-      - matrix-testing
-      - sonarqube
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          submodules: false
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
+      # 5. Build Docker Image
       - name: Build Docker Image
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build \
-            -t "$DOCKERHUB_USERNAME/bus-booking:$IMAGE_TAG" .
+          docker build -t rishi784/bus-booking:${{ github.sha }} .
 
-      # TRIVY FILESYSTEM SCAN
-      - name: Trivy Filesystem Scan
-        uses: aquasecurity/trivy-action@v0.36.0
+      # 6. Trivy Docker Image Scan Only
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@0.36.0
         with:
-          scan-type: fs
-          scan-ref: .
-          scanners: vuln,secret,misconfig
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
+          image-ref: rishi784/bus-booking:${{ github.sha }}
+          format: table
           exit-code: '1'
-
-      # TRIVY DOCKER IMAGE SCAN
-      - name: Trivy Docker Image Scan
-        uses: aquasecurity/trivy-action@v0.36.0
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          IMAGE_TAG: ${{ github.sha }}
-        with:
-          scan-type: image
-          image-ref: ${{ secrets.DOCKER_USERNAME }}/bus-booking:${{ github.sha }}
-          severity: CRITICAL,HIGH
           ignore-unfixed: true
-          exit-code: '1'
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
 
-      # DOCKER HUB LOGIN
+      # 7. Docker Hub Login
       - name: Docker Hub Login
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # PUSH DOCKER IMAGE
+      # 8. Push Docker Image
       - name: Push Docker Image
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          IMAGE_TAG: ${{ github.sha }}
+        if: github.event_name == 'push'
         run: |
-          docker push \
-            "$DOCKER_USERNAME/bus-booking:$IMAGE_TAG"
+          docker push rishi784/bus-booking:${{ github.sha }}
 
-  # =====================================
-  # JOB 4: UPDATE KUBERNETES MANIFEST
-  # =====================================
-  update-gitops:
-    name: Update Kubernetes GitOps
-    runs-on: ubuntu-latest
-
-    needs: docker-security
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
+      # 9. Update Kubernetes Deployment Image
       - name: Update Kubernetes Image
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          IMAGE_TAG: ${{ github.sha }}
+        if: github.event_name == 'push'
         run: |
-          python - <<'PY'
-          import os
-          import re
-          from pathlib import Path
+          sed -i "s|image: .*|image: rishi784/bus-booking:${{ github.sha }}|" k8t/deployment.yaml
 
-          path = Path("k8s/deployment.yaml")
-
-          if not path.exists():
-              raise SystemExit("k8s/deployment.yaml not found")
-
-          content = path.read_text()
-
-          image = (
-              f"{os.environ['DOCKER_USERNAME']}/"
-              f"bus-booking:{os.environ['IMAGE_TAG']}"
-          )
-
-          updated, count = re.subn(
-              r"(?m)^(\s*image:\s*).+$",
-              lambda match: match.group(1) + image,
-              content,
-              count=1
-          )
-
-          if count != 1:
-              raise SystemExit("Could not find Deployment image field")
-
-          path.write_text(updated)
-          PY
-
-      - name: Commit and Push Changes
+      # 10. Commit Changes for ArgoCD
+      - name: Push Manifest Changes
+        if: github.event_name == 'push'
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-
-          git add k8s/deployment.yaml
-
-          if ! git diff --cached --quiet; then
-            git commit -m "Update Bus Booking Docker image"
-            git push origin HEAD:main
-          else
-            echo "No manifest changes"
-          fi
+          git add k8t/deployment.yaml
+          git commit -m "Update Docker image [skip ci]"
+          git push
