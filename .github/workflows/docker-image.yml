@@ -1,42 +1,51 @@
 
-name: SonarQube Code Quality
+name: Bus Booking - SonarQube CI
 
 on:
   push:
     branches:
       - main
-
   pull_request:
     branches:
       - main
-
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pull-requests: read
-
 jobs:
-  sonarqube:
-    name: SonarQube Cloud Analysis
+  sonarqube-analysis:
+    name: SonarQube Code Quality
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      # 1. Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: SonarQube Cloud Scan
-        uses: SonarSource/sonarqube-scan-action@v6
+      # 2. Setup Java
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 3. SonarQube Scan
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
-          projectBaseDir: .
           args: >
             -Dsonar.projectKey=rishi0143
-            -Dsonar.organization=rishi0143_aws-project3
+            -Dsonar.projectName=bus-booking
             -Dsonar.sources=.
-            -Dsonar.sourceEncoding=UTF-8
-            -Dsonar.exclusions=terraform/**,k8t/**,.github/**,.terraform/**,**/__pycache__/**,**/venv/**
-            -Dsonar.qualitygate.wait=true
+            -Dsonar.exclusions=terraform/**,k8t/**,.github/**,.terraform/**,**/__pycache__/**,**/venv/**,**/.venv/**
+
+      # 4. Quality Gate
+      - name: SonarQube Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
