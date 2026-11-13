@@ -96,10 +96,7 @@ resource "aws_iam_role" "github_actions" {
   })
 }
 
-# Lab-only broad permissions.
-# Replace AdministratorAccess with least-privilege permissions
-# before production use.
-
+# Lab-only permissions. Use least privilege in production.
 resource "aws_iam_role_policy_attachment" "github_admin" {
   role       = aws_iam_role.github_actions.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
@@ -116,12 +113,11 @@ module "eks" {
   cluster_name    = var.cluster_name
   cluster_version = var.cluster_version
 
-  # Security: Private API endpoint only
+  # Private API endpoint
   cluster_endpoint_public_access  = false
   cluster_endpoint_private_access = true
 
   authentication_mode = "API_AND_CONFIG_MAP"
-
   enable_cluster_creator_admin_permissions = true
 
   vpc_id     = module.vpc.vpc_id
@@ -141,6 +137,36 @@ module "eks" {
           }
         }
       }
+    }
+  }
+
+  # Restrict default node security group egress
+  node_security_group_additional_rules = {
+    egress_all = {
+      description = "Allow HTTPS outbound"
+      protocol    = "tcp"
+      from_port   = 443
+      to_port     = 443
+      type        = "egress"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+
+    egress_dns_udp = {
+      description = "Allow DNS UDP within VPC"
+      protocol    = "udp"
+      from_port   = 53
+      to_port     = 53
+      type        = "egress"
+      cidr_blocks = ["10.0.0.0/16"]
+    }
+
+    egress_dns_tcp = {
+      description = "Allow DNS TCP within VPC"
+      protocol    = "tcp"
+      from_port   = 53
+      to_port     = 53
+      type        = "egress"
+      cidr_blocks = ["10.0.0.0/16"]
     }
   }
 
