@@ -1,28 +1,22 @@
 
-name: Python SonarQube and Trivy Pipeline
+name: Python-SonarQube-Trivy-CI
 
 on:
   push:
     branches:
       - main
-
   pull_request:
     branches:
       - main
-
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
-  security-analysis:
-    name: Code Quality and Security
+  security-and-quality:
+    name: Python Code Quality and Security Scan
     runs-on: ubuntu-latest
 
     steps:
-
-      # 1. Checkout GitHub repository
+      # 1. Checkout source code
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
@@ -38,71 +32,67 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
 
-      # 4. Python syntax check
+      # 4. Python syntax validation
       - name: Python Syntax Check
         run: |
-          python -m compileall -q app.py
+          python -m compileall -q .
 
-      # 5. Check SonarQube server
+      # 5. Setup Java runtime for older SonarScanner CLI
+      # This is NOT for building a Java application.
+      - name: Setup Java Runtime
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      # 6. Install SonarScanner CLI
+      - name: Install SonarScanner
+        run: |
+          curl -fL -o sonar-scanner.zip \
+            https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
+          unzip -q sonar-scanner.zip
+          echo "$GITHUB_WORKSPACE/sonar-scanner-4.8.0.2856-linux/bin" >> "$GITHUB_PATH"
+
+      # 7. Check SonarQube server
       - name: Check SonarQube Server
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          for i in {1..30}; do
+          curl -fsS -u "$SONAR_TOKEN:" \
+            "$SONAR_HOST_URL/api/system/status"
 
-            if curl -fsS "$SONAR_HOST_URL/api/system/status" | grep -q '"status":"UP"'; then
-              echo "SonarQube server is UP"
-              exit 0
-            fi
-
-            echo "Waiting for SonarQube..."
-            sleep 10
-          done
-
-          echo "SonarQube server unavailable"
-          exit 1
-
-      # 6. SonarQube Code Quality Analysis
+      # 8. SonarQube analysis
       - name: SonarQube Scan
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          docker run --rm \
-            --user "$(id -u):$(id -g)" \
-            -e SONAR_HOST_URL="$SONAR_HOST_URL" \
-            -e SONAR_TOKEN="$SONAR_TOKEN" \
-            -v "$GITHUB_WORKSPACE:/usr/src" \
-            -w /usr/src \
-            sonarsource/sonar-scanner-cli:4.8 \
+          sonar-scanner \
             -Dsonar.projectKey=rishi0143 \
             -Dsonar.projectName=aws-project \
             -Dsonar.sources=. \
-            -Dsonar.inclusions=**/*.py,**/*.html,**/*.css \
-            -Dsonar.exclusions=terraform/**,k8t/**,.github/**,**/__pycache__/**,**/venv/**,**/.venv/** \
+            -Dsonar.inclusions='**/*.py,**/*.html,**/*.css' \
+            -Dsonar.exclusions='terraform/**,k8t/**,.github/**,**/__pycache__/**,**/venv/**,**/.venv/**' \
             -Dsonar.sourceEncoding=UTF-8 \
             -Dsonar.python.version=3.11 \
             -Dsonar.host.url="$SONAR_HOST_URL" \
-            -Dsonar.login="$SONAR_TOKEN" \
+            -Dsonar.token="$SONAR_TOKEN" \
             -Dsonar.qualitygate.wait=true
 
-      # 7. Install Trivy
+      # 9. Install Trivy directly
       - name: Install Trivy
         run: |
-          curl -fL \
-            https://github.com/aquasecurity/trivy/releases/download/v0.68.2/trivy_0.68.2_Linux-64bit.deb \
-            -o trivy.deb
-
+          curl -fL -o trivy.deb \
+            https://github.com/aquasecurity/trivy/releases/download/v0.68.2/trivy_0.68.2_Linux-64bit.deb
           sudo dpkg -i trivy.deb
-
           trivy --version
 
-      # 8. Trivy Filesystem Security Scan
+      # 10. Scan repository files
       - name: Trivy Filesystem Scan
         run: |
           trivy fs \
@@ -112,25 +102,16 @@ jobs:
             --exit-code 1 \
             .
 
-      # 9. Build Docker image
-      - name: Docker Build
+      # 11. Build Docker image
+      - name: Build Docker Image
         run: |
           docker build -t bus-booking:latest .
 
-      # 10. Trivy Docker Image Scan
-      - name: Trivy Image Scan
+      # 12. Scan Docker image
+      - name: Trivy Docker Image Scan
         run: |
           trivy image \
             --severity HIGH,CRITICAL \
             --ignore-unfixed \
             --exit-code 1 \
             bus-booking:latest
-
-      # 11. Final success
-      - name: Pipeline Success
-        run: |
-          echo "Python syntax check completed"
-          echo "SonarQube Quality Gate passed"
-          echo "Trivy filesystem scan passed"
-          echo "Docker image built successfully"
-          echo "Trivy image scan passed"
