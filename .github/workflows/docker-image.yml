@@ -1,88 +1,36 @@
-
-name: Bus Booking DevOps Pipeline
+name: KubeCI
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
-
-permissions:
-  contents: write
 
 jobs:
-  build-scan-deploy:
+  rishi:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout source code
-      - name: Checkout Code
+
+      # 1. Checkout GitHub repository
+      - name: Git checkout
         uses: actions/checkout@v4
 
-      # 2. Setup Python
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      # 3. Install dependencies
-      - name: Install Dependencies
-        run: |
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
-
-      # 4. SonarQube Code Quality Scan
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6
-        env:
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      # 5. Build Docker Image
+      # 2. Build Docker image
       - name: Build Docker Image
         run: |
-          docker build -t rishi784/bus-booking:${{ github.sha }} .
+          SHORT_SHA=${GITHUB_SHA::7}
+          docker build -t rishi784/gha:${SHORT_SHA} .
 
-      # 6. Trivy Docker Image Scan Only
-      - name: Trivy Image Scan
-        uses: aquasecurity/trivy-action@0.36.0
-        with:
-          image-ref: rishi784/bus-booking:${{ github.sha }}
-          format: table
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
-
-      # 7. Docker Hub Login
-      - name: Docker Hub Login
-        if: github.event_name == 'push'
+      # 3. Login to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # 8. Push Docker Image
+       # 4. Push Docker image
       - name: Push Docker Image
-        if: github.event_name == 'push'
         run: |
-          docker push rishi784/bus-booking:${{ github.sha }}
+          SHORT_SHA=${GITHUB_SHA::7}
+          docker push rishi784/gha:${SHORT_SHA}
 
-      # 9. Update Kubernetes Deployment Image
-      - name: Update Kubernetes Image
-        if: github.event_name == 'push'
-        run: |
-          sed -i "s|image: .*|image: rishi784/bus-booking:${{ github.sha }}|" k8t/deployment.yaml
-
-      # 10. Commit Changes for ArgoCD
-      - name: Push Manifest Changes
-        if: github.event_name == 'push'
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add k8t/deployment.yaml
-          git commit -m "Update Docker image [skip ci]"
-          git push
+     
