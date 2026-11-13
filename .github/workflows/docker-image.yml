@@ -84,15 +84,26 @@ jobs:
             -Dsonar.token="$SONAR_TOKEN" \
             -Dsonar.qualitygate.wait=true
 
-      # 9. Install Trivy directly
+ 
+      # 9. Install Trivy using official repository
       - name: Install Trivy
         run: |
-          curl -fL -o trivy.deb \
-            https://github.com/aquasecurity/trivy/releases/download/v0.68.2/trivy_0.68.2_Linux-64bit.deb
-          sudo dpkg -i trivy.deb
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg
+
+          wget -qO- https://aquasecurity.github.io/trivy-repo/deb/public.key \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" \
+            | sudo tee /etc/apt/sources.list.d/trivy.list
+
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
           trivy --version
 
-      # 10. Scan repository files
+      # 10. Trivy Filesystem Scan
       - name: Trivy Filesystem Scan
         run: |
           trivy fs \
@@ -102,12 +113,12 @@ jobs:
             --exit-code 1 \
             .
 
-      # 11. Build Docker image
+      # 11. Build Docker Image
       - name: Build Docker Image
         run: |
           docker build -t bus-booking:latest .
 
-      # 12. Scan Docker image
+      # 12. Trivy Docker Image Scan
       - name: Trivy Docker Image Scan
         run: |
           trivy image \
@@ -115,3 +126,4 @@ jobs:
             --ignore-unfixed \
             --exit-code 1 \
             bus-booking:latest
+
