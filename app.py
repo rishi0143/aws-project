@@ -1,6 +1,7 @@
 
 import os
-import sqlite3
+import mysql.connector
+from mysql.connector import Error
 from datetime import date, timedelta
 from flask import (
     Flask, render_template, request,
@@ -9,12 +10,7 @@ from flask import (
 
 app = Flask(__name__)
 
-app.secret_key = os.environ.get(
-    "SECRET_KEY", "easybus-demo-secret"
-)
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(BASE_DIR, "easybus.db")
+app.secret_key = os.environ.get("SECRET_KEY", "easybus-demo-secret")
 
 SOURCE = "Hyderabad"
 
@@ -27,118 +23,119 @@ DESTINATIONS = [
 
 
 # ==========================================
-# DATABASE CONNECTION
+# AWS RDS MYSQL CONNECTION
 # ==========================================
 
 def get_db():
-    conn = sqlite3.connect(DATABASE, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    return mysql.connector.connect(
+        host=os.environ["DB_HOST"],
+        port=int(os.environ.get("DB_PORT", "3306")),
+        database=os.environ.get("DB_NAME", "busbooking"),
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"],
+        connection_timeout=10
+    )
 
 
 # ==========================================
-# CREATE DATABASE AND TABLES
+# CREATE DATABASE TABLES AND SAMPLE BUSES
 # ==========================================
 
 def init_db():
 
     conn = get_db()
+    cursor = conn.cursor()
 
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS buses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            bus_name TEXT NOT NULL,
-            source TEXT NOT NULL,
-            destination TEXT NOT NULL,
-            journey_date TEXT NOT NULL,
-            departure_time TEXT NOT NULL,
-            arrival_time TEXT NOT NULL,
-            fare REAL NOT NULL,
-            total_seats INTEGER NOT NULL,
-            available_seats INTEGER NOT NULL
-        )
-    """)
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS buses (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                bus_name VARCHAR(100) NOT NULL,
+                source VARCHAR(100) NOT NULL,
+                destination VARCHAR(100) NOT NULL,
+                journey_date DATE NOT NULL,
+                departure_time VARCHAR(10) NOT NULL,
+                arrival_time VARCHAR(10) NOT NULL,
+                fare DECIMAL(10,2) NOT NULL,
+                total_seats INT NOT NULL,
+                available_seats INT NOT NULL
+            ) ENGINE=InnoDB
+        """)
 
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS bookings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            bus_id INTEGER NOT NULL,
-            passenger_name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            phone TEXT NOT NULL,
-            seats INTEGER NOT NULL,
-            total_amount REAL NOT NULL,
-            payment_method TEXT NOT NULL,
-            payment_status TEXT NOT NULL,
-            booking_status TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(bus_id) REFERENCES buses(id)
-        )
-    """)
-
-    conn.commit()
-
-    # Insert sample buses if database is empty
-    count = conn.execute(
-        "SELECT COUNT(*) FROM buses"
-    ).fetchone()[0]
-
-    if count == 0:
-
-        destination_fares = {
-            "Visakhapatnam": 1200,
-            "Vijayawada": 650,
-            "Sompeta": 1400,
-            "Baruva": 1500
-        }
-
-        bus_options = [
-            ("Orange Travels", "21:00", "05:00", 0, 40),
-            ("VRL Travels", "22:00", "06:00", 100, 36),
-            ("Kaveri Travels", "20:30", "04:30", 150, 40)
-        ]
-
-        for day in range(30):
-
-            travel_date = (
-                date.today() + timedelta(days=day)
-            ).isoformat()
-
-            for destination, base_fare in destination_fares.items():
-
-                for bus_name, departure, arrival, extra, seats in bus_options:
-
-                    fare = base_fare + extra
-
-                    conn.execute("""
-                        INSERT INTO buses (
-                            bus_name,
-                            source,
-                            destination,
-                            journey_date,
-                            departure_time,
-                            arrival_time,
-                            fare,
-                            total_seats,
-                            available_seats
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        bus_name,
-                        SOURCE,
-                        destination,
-                        travel_date,
-                        departure,
-                        arrival,
-                        fare,
-                        seats,
-                        seats
-                    ))
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bookings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                bus_id INT NOT NULL,
+                passenger_name VARCHAR(150) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                phone VARCHAR(30) NOT NULL,
+                seats INT NOT NULL,
+                total_amount DECIMAL(10,2) NOT NULL,
+                payment_method VARCHAR(30) NOT NULL,
+                payment_status VARCHAR(50) NOT NULL,
+                booking_status VARCHAR(50) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_booking_bus
+                    FOREIGN KEY (bus_id) REFERENCES buses(id)
+            ) ENGINE=InnoDB
+        """)
 
         conn.commit()
 
-    conn.close()
+        cursor.execute("SELECT COUNT(*) FROM buses")
+        count = cursor.fetchone()[0]
+
+        if count == 0:
+
+            destination_fares = {
+                "Visakhapatnam": 1200,
+                "Vijayawada": 650,
+                "Sompeta": 1400,
+                "Baruva": 1500
+            }
+
+            bus_options = [
+                ("Orange Travels", "21:00", "05:00", 0, 40),
+                ("VRL Travels", "22:00", "06:00", 100, 36),
+                ("Kaveri Travels", "20:30", "04:30", 150, 40)
+            ]
+
+            insert_query = """
+                INSERT INTO buses (
+                    bus_name, source, destination,
+                    journey_date, departure_time, arrival_time,
+                    fare, total_seats, available_seats
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+
+            for day in range(30):
+
+                travel_date = date.today() + timedelta(days=day)
+
+                for destination, base_fare in destination_fares.items():
+
+                    for bus_name, departure, arrival, extra, seats in bus_options:
+
+                        fare = base_fare + extra
+
+                        cursor.execute(insert_query, (
+                            bus_name,
+                            SOURCE,
+                            destination,
+                            travel_date,
+                            departure,
+                            arrival,
+                            fare,
+                            seats,
+                            seats
+                        ))
+
+            conn.commit()
+
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # ==========================================
@@ -158,69 +155,56 @@ def home():
 
 # ==========================================
 # SEARCH BUSES
-# GET REQUEST FIXED
 # ==========================================
 
 @app.route("/search", methods=["GET", "POST"])
 def search_buses():
 
-    # Prevent HTTP 405 when opening /search directly
     if request.method == "GET":
         return redirect(url_for("home"))
 
-    source = request.form.get(
-        "source", SOURCE
-    ).strip()
-
-    destination = request.form.get(
-        "destination", ""
-    ).strip()
-
-    journey_date = request.form.get(
-        "journey_date", ""
-    ).strip()
+    source = request.form.get("source", SOURCE).strip()
+    destination = request.form.get("destination", "").strip()
+    journey_date = request.form.get("journey_date", "").strip()
 
     if source.lower() != SOURCE.lower():
-
         flash("Starting point must be Hyderabad.")
         return redirect(url_for("home"))
 
     if destination not in DESTINATIONS:
-
         flash("Please select a valid destination.")
         return redirect(url_for("home"))
 
     try:
-
         selected_date = date.fromisoformat(journey_date)
 
         if selected_date < date.today():
-
             flash("Please select today or a future date.")
             return redirect(url_for("home"))
 
     except ValueError:
-
         flash("Please select a valid journey date.")
         return redirect(url_for("home"))
 
     conn = get_db()
+    cursor = conn.cursor(dictionary=True)
 
-    buses = conn.execute("""
-        SELECT *
-        FROM buses
-        WHERE LOWER(source) = LOWER(?)
-        AND LOWER(destination) = LOWER(?)
-        AND journey_date = ?
-        AND available_seats > 0
-        ORDER BY departure_time
-    """, (
-        SOURCE,
-        destination,
-        journey_date
-    )).fetchall()
+    try:
+        cursor.execute("""
+            SELECT *
+            FROM buses
+            WHERE LOWER(source) = LOWER(%s)
+              AND LOWER(destination) = LOWER(%s)
+              AND journey_date = %s
+              AND available_seats > 0
+            ORDER BY departure_time
+        """, (SOURCE, destination, journey_date))
 
-    conn.close()
+        buses = cursor.fetchall()
+
+    finally:
+        cursor.close()
+        conn.close()
 
     return render_template(
         "search_results.html",
@@ -239,253 +223,198 @@ def search_buses():
 def book_bus(bus_id):
 
     conn = get_db()
+    cursor = conn.cursor(dictionary=True)
 
-    bus = conn.execute(
-        "SELECT * FROM buses WHERE id = ?",
-        (bus_id,)
-    ).fetchone()
+    try:
+        cursor.execute(
+            "SELECT * FROM buses WHERE id = %s",
+            (bus_id,)
+        )
+        bus = cursor.fetchone()
 
-    if bus is None:
-        conn.close()
-        abort(404)
+        if bus is None:
+            abort(404)
 
-    if request.method == "POST":
+        if request.method == "POST":
 
-        passenger_name = request.form.get(
-            "passenger_name", ""
-        ).strip()
+            passenger_name = request.form.get(
+                "passenger_name", ""
+            ).strip()
 
-        email = request.form.get(
-            "email", ""
-        ).strip()
+            email = request.form.get("email", "").strip()
+            phone = request.form.get("phone", "").strip()
 
-        phone = request.form.get(
-            "phone", ""
-        ).strip()
+            try:
+                seats = int(request.form.get("seats", "1"))
+            except ValueError:
+                seats = 0
 
-        try:
-            seats = int(request.form.get("seats", "1"))
-        except ValueError:
-            seats = 0
+            if not passenger_name or not email or not phone:
+                flash("Please fill all passenger details.")
+                return redirect(url_for("book_bus", bus_id=bus_id))
 
-        if not passenger_name or not email or not phone:
+            if seats < 1 or seats > 6:
+                flash("You can book between 1 and 6 seats.")
+                return redirect(url_for("book_bus", bus_id=bus_id))
 
-            conn.close()
-            flash("Please fill all passenger details.")
-            return redirect(
-                url_for("book_bus", bus_id=bus_id)
-            )
-
-        if seats < 1 or seats > 6:
-
-            conn.close()
-            flash("You can book between 1 and 6 seats.")
-            return redirect(
-                url_for("book_bus", bus_id=bus_id)
-            )
-
-        if seats > bus["available_seats"]:
-
-            conn.close()
-            flash(
-                "Only {} seats are available.".format(
-                    bus["available_seats"]
+            if seats > bus["available_seats"]:
+                flash(
+                    "Only {} seats are available.".format(
+                        bus["available_seats"]
+                    )
                 )
-            )
+                return redirect(url_for("book_bus", bus_id=bus_id))
 
-            return redirect(
-                url_for("book_bus", bus_id=bus_id)
-            )
+            total_amount = seats * float(bus["fare"])
 
-        total_amount = seats * bus["fare"]
-
-        cursor = conn.execute("""
-            INSERT INTO bookings (
+            cursor.execute("""
+                INSERT INTO bookings (
+                    bus_id, passenger_name, email, phone,
+                    seats, total_amount, payment_method,
+                    payment_status, booking_status
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
                 bus_id,
                 passenger_name,
                 email,
                 phone,
                 seats,
                 total_amount,
-                payment_method,
-                payment_status,
-                booking_status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            bus_id,
-            passenger_name,
-            email,
-            phone,
-            seats,
-            total_amount,
-            "NOT_SELECTED",
-            "NOT_PAID",
-            "AWAITING_PAYMENT"
-        ))
+                "NOT_SELECTED",
+                "NOT_PAID",
+                "AWAITING_PAYMENT"
+            ))
 
-        booking_id = cursor.lastrowid
+            booking_id = cursor.lastrowid
+            conn.commit()
 
-        conn.commit()
+            return redirect(url_for("payment", booking_id=booking_id))
+
+    finally:
+        cursor.close()
         conn.close()
 
-        return redirect(
-            url_for("payment", booking_id=booking_id)
-        )
-
-    conn.close()
-
-    return render_template(
-        "book.html",
-        bus=bus
-    )
+    return render_template("book.html", bus=bus)
 
 
 # ==========================================
 # PAYMENT PAGE
 # ==========================================
 
-@app.route(
-    "/payment/<int:booking_id>",
-    methods=["GET", "POST"]
-)
+@app.route("/payment/<int:booking_id>", methods=["GET", "POST"])
 def payment(booking_id):
 
     conn = get_db()
+    cursor = conn.cursor(dictionary=True)
 
-    booking = conn.execute("""
-        SELECT
-            bookings.*,
-            buses.bus_name,
-            buses.source,
-            buses.destination,
-            buses.journey_date,
-            buses.departure_time,
-            buses.available_seats
-        FROM bookings
-        JOIN buses ON bookings.bus_id = buses.id
-        WHERE bookings.id = ?
-    """, (booking_id,)).fetchone()
+    try:
+        cursor.execute("""
+            SELECT
+                bookings.*,
+                buses.bus_name,
+                buses.source,
+                buses.destination,
+                buses.journey_date,
+                buses.departure_time,
+                buses.available_seats
+            FROM bookings
+            JOIN buses ON bookings.bus_id = buses.id
+            WHERE bookings.id = %s
+        """, (booking_id,))
 
-    if booking is None:
+        booking = cursor.fetchone()
 
-        conn.close()
-        abort(404)
+        if booking is None:
+            abort(404)
 
-    if booking["booking_status"] == "CONFIRMED":
-
-        conn.close()
-
-        return render_template(
-            "booking_success.html",
-            booking=booking
-        )
-
-    if request.method == "POST":
-
-        payment_method = request.form.get(
-            "payment_method", ""
-        ).upper()
-
-        allowed_methods = [
-            "UPI",
-            "CARD",
-            "CASH"
-        ]
-
-        if payment_method not in allowed_methods:
-
-            conn.close()
-            flash("Please select a valid payment method.")
-
-            return redirect(
-                url_for("payment", booking_id=booking_id)
+        if booking["booking_status"] == "CONFIRMED":
+            return render_template(
+                "booking_success.html",
+                booking=booking
             )
 
-        try:
+        if request.method == "POST":
 
-            # Lock database while checking and updating seats
-            conn.execute("BEGIN IMMEDIATE")
+            payment_method = request.form.get(
+                "payment_method", ""
+            ).upper()
 
-            # Check current booking status
-            current_booking = conn.execute("""
-                SELECT * FROM bookings
-                WHERE id = ?
-            """, (booking_id,)).fetchone()
+            allowed_methods = ["UPI", "CARD", "CASH"]
 
-            if current_booking is None:
+            if payment_method not in allowed_methods:
+                flash("Please select a valid payment method.")
+                return redirect(url_for("payment", booking_id=booking_id))
+
+            try:
+                conn.start_transaction()
+
+                # Lock this booking while confirming it
+                cursor.execute("""
+                    SELECT *
+                    FROM bookings
+                    WHERE id = %s
+                    FOR UPDATE
+                """, (booking_id,))
+
+                current_booking = cursor.fetchone()
+
+                if current_booking is None:
+                    conn.rollback()
+                    abort(404)
+
+                if current_booking["booking_status"] == "CONFIRMED":
+                    conn.commit()
+                    return redirect(url_for("payment", booking_id=booking_id))
+
+                # Reduce seats only if enough seats are available
+                cursor.execute("""
+                    UPDATE buses
+                    SET available_seats = available_seats - %s
+                    WHERE id = %s
+                      AND available_seats >= %s
+                """, (
+                    current_booking["seats"],
+                    current_booking["bus_id"],
+                    current_booking["seats"]
+                ))
+
+                if cursor.rowcount != 1:
+                    conn.rollback()
+                    return "Sorry, requested seats are no longer available.", 409
+
+                if payment_method == "CASH":
+                    payment_status = "PAY_ON_BOARD"
+                else:
+                    # Demo only. No real payment is processed.
+                    payment_status = "DEMO_PAID"
+
+                cursor.execute("""
+                    UPDATE bookings
+                    SET payment_method = %s,
+                        payment_status = %s,
+                        booking_status = 'CONFIRMED'
+                    WHERE id = %s
+                """, (
+                    payment_method,
+                    payment_status,
+                    booking_id
+                ))
+
+                conn.commit()
+
+            except Error:
                 conn.rollback()
-                conn.close()
-                abort(404)
+                app.logger.exception("Booking payment update failed")
+                return "Booking failed. Please try again.", 500
 
-            if current_booking["booking_status"] == "CONFIRMED":
-                conn.rollback()
-                conn.close()
-                return redirect(
-                    url_for("payment", booking_id=booking_id)
-                )
+            return redirect(url_for("payment", booking_id=booking_id))
 
-            # Reduce available seats only if sufficient seats exist
-            result = conn.execute("""
-                UPDATE buses
-                SET available_seats = available_seats - ?
-                WHERE id = ?
-                AND available_seats >= ?
-            """, (
-                current_booking["seats"],
-                current_booking["bus_id"],
-                current_booking["seats"]
-            ))
-
-            if result.rowcount != 1:
-
-                conn.rollback()
-                conn.close()
-
-                return "Sorry, requested seats are no longer available.", 409
-
-            if payment_method == "CASH":
-
-                payment_status = "PAY_ON_BOARD"
-
-            else:
-
-                # Demo payment only - no real money charged
-                payment_status = "DEMO_PAID"
-
-            conn.execute("""
-                UPDATE bookings
-                SET payment_method = ?,
-                    payment_status = ?,
-                    booking_status = 'CONFIRMED'
-                WHERE id = ?
-            """, (
-                payment_method,
-                payment_status,
-                booking_id
-            ))
-
-            conn.commit()
-
-        except sqlite3.Error:
-
-            conn.rollback()
-            conn.close()
-
-            return "Booking failed. Please try again.", 500
-
+    finally:
+        cursor.close()
         conn.close()
 
-        return redirect(
-            url_for("payment", booking_id=booking_id)
-        )
-
-    conn.close()
-
-    return render_template(
-        "payment.html",
-        booking=booking
-    )
+    return render_template("payment.html", booking=booking)
 
 
 # ==========================================
@@ -496,21 +425,27 @@ def payment(booking_id):
 def my_bookings():
 
     conn = get_db()
+    cursor = conn.cursor(dictionary=True)
 
-    bookings = conn.execute("""
-        SELECT
-            bookings.*,
-            buses.bus_name,
-            buses.source,
-            buses.destination,
-            buses.journey_date,
-            buses.departure_time
-        FROM bookings
-        JOIN buses ON bookings.bus_id = buses.id
-        ORDER BY bookings.id DESC
-    """).fetchall()
+    try:
+        cursor.execute("""
+            SELECT
+                bookings.*,
+                buses.bus_name,
+                buses.source,
+                buses.destination,
+                buses.journey_date,
+                buses.departure_time
+            FROM bookings
+            JOIN buses ON bookings.bus_id = buses.id
+            ORDER BY bookings.id DESC
+        """)
 
-    conn.close()
+        bookings = cursor.fetchall()
+
+    finally:
+        cursor.close()
+        conn.close()
 
     return render_template(
         "my_bookings.html",
@@ -519,7 +454,7 @@ def my_bookings():
 
 
 # ==========================================
-# HEALTH CHECK FOR DOCKER / KUBERNETES
+# DATABASE HEALTH CHECK
 # ==========================================
 
 @app.route("/health", methods=["GET"])
@@ -531,16 +466,47 @@ def health():
     }, 200
 
 
+@app.route("/test-db", methods=["GET"])
+def test_db():
+
+    conn = None
+
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        cursor.close()
+
+        return {
+            "status": "success",
+            "message": "AWS RDS MySQL Connected Successfully!"
+        }, 200
+
+    except Error:
+        app.logger.exception("RDS connection test failed")
+        return {
+            "status": "error",
+            "message": "Could not connect to AWS RDS MySQL"
+        }, 500
+
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
+
+
+# ==========================================
+# INITIALIZE DATABASE
+# ==========================================
+
+init_db()
+
+
 # ==========================================
 # START APPLICATION
 # ==========================================
 
-# Initialize database when Flask/Gunicorn imports app
-init_db()
-
-
 if __name__ == "__main__":
-
     app.run(
         host="0.0.0.0",
         port=5000,
