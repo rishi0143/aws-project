@@ -96,8 +96,9 @@ resource "aws_iam_role" "github_actions" {
   })
 }
 
-# Lab-only broad permissions for Terraform and EKS administration.
-# Restrict this policy before using in production.
+# Lab-only broad permissions.
+# Replace AdministratorAccess with least-privilege permissions
+# before production use.
 
 resource "aws_iam_role_policy_attachment" "github_admin" {
   role       = aws_iam_role.github_actions.name
@@ -115,7 +116,8 @@ module "eks" {
   cluster_name    = var.cluster_name
   cluster_version = var.cluster_version
 
-  cluster_endpoint_public_access  = true
+  # Security: Private API endpoint only
+  cluster_endpoint_public_access  = false
   cluster_endpoint_private_access = true
 
   authentication_mode = "API_AND_CONFIG_MAP"
@@ -125,7 +127,7 @@ module "eks" {
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
-  # GitHub Actions Role gets cluster administrator access.
+  # GitHub Actions IAM Role access
   access_entries = {
     github_actions = {
       principal_arn = aws_iam_role.github_actions.arn
