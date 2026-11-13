@@ -44,6 +44,9 @@ jobs:
       - name: Push Docker Image
         run: |
           docker push $DOCKER_IMAGE:$IMAGE_TAG
+      - name: Verify AWS Identity
+       run: |
+           aws sts get-caller-identity
 
       # 6. Configure AWS credentials
       - name: Configure AWS Credentials
