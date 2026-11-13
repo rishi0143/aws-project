@@ -7,11 +7,11 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   AWS_REGION: ap-south-1
-  EKS_CLUSTER_NAME: my-eks-cluster3
+  EKS_CLUSTER_NAME: my-eks-cluster5
   DOCKER_IMAGE: rishi784/gha-pyapp
 
 jobs:
@@ -19,20 +19,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       # 1. Checkout GitHub repository
       - name: Git Checkout
         uses: actions/checkout@v4
 
-      # 2. Set image tag
+      # 2. Generate Docker image tag
       - name: Set Image Tag
         run: |
-          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
       # 3. Build Docker image
       - name: Build Docker Image
         run: |
-          docker build -t $DOCKER_IMAGE:$SHORT_SHA .
+          docker build -t $DOCKER_IMAGE:$IMAGE_TAG .
 
       # 4. Login to Docker Hub
       - name: Login to Docker Hub
@@ -41,38 +40,12 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 5. Push Docker image
+      # 5. Push image to Docker Hub
       - name: Push Docker Image
         run: |
-          docker push $DOCKER_IMAGE:$SHORT_SHA
+          docker push $DOCKER_IMAGE:$IMAGE_TAG
 
-      # 6. Install yq
-      - name: Install yq
-        run: |
-          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
-            -O /usr/local/bin/yq
-          sudo chmod +x /usr/local/bin/yq
-
-      # 7. Verify Kubernetes files
-      - name: Verify Kubernetes Files
-        run: |
-          ls -la ./k8t/
-          test -f ./k8t/deployment.yaml
-          test -f ./k8t/service.yaml
-          test -f ./k8t/hpa.yaml
-
-      # 8. Update Kubernetes deployment image
-      - name: Update deployment.yaml
-        run: |
-          export SHORT_SHA
-
-          yq -i '.spec.template.spec.containers[0].image = strenv(DOCKER_IMAGE) + ":" + strenv(SHORT_SHA)' \
-            ./k8t/deployment.yaml
-
-          echo "Updated Docker image:"
-          yq '.spec.template.spec.containers[0].image' ./k8t/deployment.yaml
-
-      # 9. Configure AWS Credentials
+      # 6. Configure AWS credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -80,31 +53,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      # 10. Install kubectl
+      # 7. Install kubectl
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: latest
 
-      # 11. Verify AWS Identity
+      # 8. Verify AWS account
       - name: Verify AWS Identity
         run: |
           aws sts get-caller-identity
 
-      # 12. Connect to EKS
+      # 9. Connect to EKS cluster
       - name: Connect to EKS
         run: |
           aws eks update-kubeconfig \
             --region ap-south-1 \
-            --name my-eks-cluster3
+            --name my-eks-cluster5
 
-      # 13. Check Kubernetes Nodes
-      - name: Check Kubernetes Nodes
-        run: |
           kubectl get nodes
-          kubectl get pods -A
 
-      # 14. Install Metrics Server
+      # 10. Install Metrics Server
       - name: Install Metrics Server
         run: |
           kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
@@ -113,49 +82,49 @@ jobs:
             -n kube-system \
             --timeout=180s
 
-      # 15. Verify Metrics Server
-      - name: Check Metrics Server
+      # 11. Verify Metrics Server
+      - name: Verify Metrics Server
         run: |
+          kubectl get deployment metrics-server -n kube-system
           kubectl get apiservices v1beta1.metrics.k8s.io
-          kubectl top nodes || true
 
-      # 16. Deploy Application
+          for i in {1..12}; do
+            if kubectl top nodes; then
+              exit 0
+            fi
+            echo "Waiting for Metrics Server..."
+            sleep 10
+          done
+
+          echo "Metrics Server is not providing metrics"
+          exit 1
+
+      # 12. Deploy Kubernetes application
       - name: Deploy Application
         run: |
           kubectl apply -f k8t/deployment.yaml
           kubectl apply -f k8t/service.yaml
 
+          kubectl set image deployment/bus-booking \
+            bus-booking=$DOCKER_IMAGE:$IMAGE_TAG
+
           kubectl rollout status deployment/bus-booking \
             --timeout=180s
 
-      # 17. Configure HPA
+      # 13. Configure HPA
       - name: Configure HPA
         run: |
           kubectl apply -f k8t/hpa.yaml
 
-      # 18. Check HPA
-      - name: Test HPA
+      # 14. Verify HPA and pods
+      - name: Verify HPA
         run: |
           kubectl get hpa
           kubectl describe hpa bus-booking-hpa
-          kubectl top pods || true
+          kubectl get pods
+          kubectl top pods
 
-      # 19. Commit updated deployment file
-      - name: Commit deployment changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add k8t/deployment.yaml
-
-          if ! git diff --cached --quiet; then
-            git commit -m "Update Docker image tag [skip ci]"
-            git push origin HEAD:main
-          else
-            echo "No changes to commit"
-          fi
-
-      # 20. Final Deployment Status
+      # 15. Deployment status
       - name: Deployment Status
         if: always()
         run: |
