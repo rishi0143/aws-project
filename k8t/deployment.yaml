@@ -20,7 +20,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: bus-booking
-          image: rishi784/gha-pyapp:8f0e09e
+          image: rishi784/gha-pyapp:cf451ab
           ports:
             - containerPort: 5000
           securityContext:
